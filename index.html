@@ -8,6 +8,7 @@
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
+      background-color: #90AE9B; /* Light green background */
     }
     .log {
       background-color: #f9f9f9;
@@ -16,6 +17,7 @@
       height: 200px;
       overflow-y: scroll;
       white-space: pre-wrap;
+      display: none; /* Hidden by default */
     }
     .log-entry {
       margin-bottom: 5px;
@@ -27,21 +29,49 @@
       width: 100%;
       border-collapse: collapse;
       margin-bottom: 20px;
+      table-layout: fixed;
     }
     .settings-table th, .settings-table td {
       border: 1px solid #ccc;
       padding: 8px;
       text-align: left;
+      vertical-align: top;
+      word-wrap: break-word;
     }
     .settings-table th {
       background-color: #f2f2f2;
     }
-    .settings-table .value-column {
+
+    .name-column {
+      width: 18%;
+      word-wrap: break-word;
+      white-space: normal;
+    }
+    .id-column {
+      width: 5%;
+      white-space: nowrap;
+    }
+    .value-column {
       background-color: #e0f7fa;
+      width: 14%;
     }
+    .default-column, 
+    .min-column, 
+    .max-column {
+      width: 12%;
+      font-size: 90%;
+    }
+    .new-value-column {
+      width: 20%;
+    }
+    .action-column {
+      width: 14%;
+    }
+
     .value-updated {
-      background-color: #ccffcc; /* Light green background for updated values */
+      background-color: #ccffcc !important;
     }
+
     .spinner {
       border: 4px solid rgba(0, 0, 0, 0.1);
       border-left-color: #000;
@@ -58,16 +88,34 @@
         transform: rotate(360deg);
       }
     }
-    /* Ensure Value, Default, Min, and Max columns have equal width */
-    .equal-width td:nth-child(3),
-    .equal-width td:nth-child(4),
-    .equal-width td:nth-child(5),
-    .equal-width td:nth-child(6) {
-      width: 15%;
+
+    input.invalid {
+      border: 2px solid red;
+    }
+
+    button {
+      background-color: #52735E; /* Dark green buttons */
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #426052; /* Slightly darker on hover */
+    }
+
+    .toggle-button {
+      margin-bottom: 10px;
+      background-color: #52735E;
+      color: white;
+      padding: 5px 10px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
+
+  <img src="smartparks-logo.png" alt="Smart Parks Logo" style="width: 200px; display: block; margin-bottom: 20px;"> <!-- Add logo -->
 
   <h1>OpenCollar Edge BLE Web Connect</h1>
 
@@ -79,20 +127,22 @@
   </div>
 
   <h2>Log</h2>
+  <button class="toggle-button" id="toggle-log">Show Log</button> <!-- Toggle button -->
+
   <div class="log" id="log"></div>
 
   <h2>Settings</h2>
-  <table class="settings-table equal-width" id="settings-table">
+  <table class="settings-table" id="settings-table">
     <thead>
       <tr>
-        <th>Setting Name</th>
-        <th>ID</th>
+        <th class="name-column">Setting Name</th>
+        <th class="id-column">ID</th>
         <th class="value-column">Value</th>
-        <th>Default</th>
-        <th>Min</th>
-        <th>Max</th>
-        <th>New Value</th>
-        <th>Action</th>
+        <th class="default-column">Default</th>
+        <th class="min-column">Min</th>
+        <th class="max-column">Max</th>
+        <th class="new-value-column">New Value</th>
+        <th class="action-column">Action</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -104,6 +154,18 @@
     let currentSettingIndex = 0;
     const spinnerHtml = '<div class="spinner"></div>';
     let settingsKeys = [];
+
+    // Toggle log visibility
+    document.getElementById('toggle-log').addEventListener('click', function () {
+      const logElement = document.getElementById('log');
+      if (logElement.style.display === 'none') {
+        logElement.style.display = 'block';
+        this.textContent = 'Hide Log';
+      } else {
+        logElement.style.display = 'none';
+        this.textContent = 'Show Log';
+      }
+    });
 
     async function loadSettings() {
       try {
@@ -126,14 +188,14 @@
         const row = document.createElement('tr');
         row.setAttribute('id', `setting-${setting.id}`);
         row.innerHTML = `
-          <td>${key}</td>
-          <td>${setting.id}</td>
-          <td class="value">${spinnerHtml}</td>
-          <td>${setting.default}</td>
-          <td>${setting.min}</td>
-          <td>${setting.max}</td>
-          <td><input type="text" id="new-value-${setting.id}" /></td>
-          <td><button onclick="updateSetting('${setting.id}')">Update</button></td>
+          <td class="name-column">${key}</td>
+          <td class="id-column">${setting.id}</td>
+          <td class="value-column">${spinnerHtml}</td>
+          <td class="default-column">${setting.default}</td>
+          <td class="min-column">${setting.min}</td>
+          <td class="max-column">${setting.max}</td>
+          <td class="new-value-column"><input type="text" id="new-value-${setting.id}" /></td>
+          <td class="action-column"><button onclick="updateSetting('${setting.id}')">Update</button></td>
         `;
         settingsTableBody.appendChild(row);
       }
@@ -208,49 +270,51 @@
       const settingId = data[1];
       const length = data[2];
       const valueBytes = data.slice(3, 3 + length);
-
       const settingKey = findSettingById(settingId);
 
       if (!settingKey) {
-        log(`Unknown setting ID: 0x${settingId.toString(16).padStart(2, '0')}`, true);
+        log(`Setting with ID 0x${settingId.toString(16).padStart(2, '0')} not found`, true);
         return;
       }
 
       let value;
       const setting = settingsData.settings[settingKey];
 
+      // Handling different data types
       if (setting.conversion === 'uint32') {
         value = new DataView(new Uint8Array(valueBytes).buffer).getUint32(0, true);
+      } else if (setting.conversion === 'uint16') {
+        value = new DataView(new Uint8Array(valueBytes).buffer).getUint16(0, true);
       } else if (setting.conversion === 'uint8') {
         value = valueBytes[0];
       } else if (setting.conversion === 'int32') {
         value = new DataView(new Uint8Array(valueBytes).buffer).getInt32(0, true);
-      } else if (setting.conversion === 'uint16') {
-        value = new DataView(new Uint8Array(valueBytes).buffer).getUint16(0, true);
-      } else if (setting.conversion === 'int16') {
-        value = new DataView(new Uint8Array(valueBytes).buffer).getInt16(0, true);
       } else if (setting.conversion === 'int8') {
+        // Correct handling of int8 negative values
         value = new DataView(new Uint8Array(valueBytes).buffer).getInt8(0);
       } else if (setting.conversion === 'bool') {
         value = valueBytes[0] !== 0;
-      } else if (setting.conversion === 'string') {
-        value = new TextDecoder().decode(new Uint8Array(valueBytes));
       } else if (setting.conversion === 'byte_array') {
         value = `{${Array.from(valueBytes).map(byte => '0x' + byte.toString(16).padStart(2, '0')).join(', ')}}`;
-      } else {
-        log(`Unsupported conversion type: ${setting.conversion}`, true);
-        value = "Unsupported type";
+      } else if (setting.conversion === 'string') {
+        value = new TextDecoder().decode(new Uint8Array(valueBytes));
       }
 
+      log(`Decoded setting response: ${settingKey} = ${value}`);
       updateSettingDisplay(setting.id, value);
       fetchNextSetting();
     }
 
-    function updateSettingDisplay(settingId, value) {
+    function updateSettingDisplay(settingId, value, isUpdated = false) {
       const settingElement = document.getElementById(`setting-${settingId}`);
       if (settingElement) {
-        const valueElement = settingElement.querySelector('.value');
+        const valueElement = settingElement.querySelector('.value-column');
         valueElement.innerHTML = value;
+        if (isUpdated) {
+          valueElement.classList.add('value-updated');
+        } else {
+          valueElement.classList.remove('value-updated');
+        }
       }
     }
 
@@ -274,7 +338,6 @@
       const key = settingsKeys[currentSettingIndex];
       const setting = settingsData.settings[key];
       const settingId = parseInt(setting.id, 16);
-
       const command = [0x20, 0xa8, 0x01, settingId];
       const commandBuffer = new Uint8Array(command).buffer;
 
@@ -289,83 +352,106 @@
       currentSettingIndex++;
     }
 
-    async function fetchSingleSetting(settingId) {
-      const setting = settingsData.settings[findSettingById(parseInt(settingId, 16))];
-      const command = [0x20, 0xa8, 0x01, parseInt(settingId, 16)];
-      const commandBuffer = new Uint8Array(command).buffer;
-
-      log(`Re-fetching value for ${setting.id}`);
-
-      try {
-        await rxCharacteristic.writeValue(commandBuffer);
-      } catch (error) {
-        log(`Error re-fetching value for ${setting.id}: ${error.message}`, true);
-      }
-    }
-
     async function updateSetting(settingId) {
-      const inputField = document.getElementById(`new-value-${settingId}`);
-      if (!inputField) {
-        log(`Input field for setting ID ${settingId} not found.`, true);
+      const inputElement = document.getElementById(`new-value-${settingId}`);
+      const newValue = inputElement.value.trim();
+
+      if (!newValue) {
+        log(`No new value provided for setting ID: ${settingId}`, true);
         return;
       }
 
-      const newValue = inputField.value;
       const settingKey = findSettingById(parseInt(settingId, 16));
       if (!settingKey) {
-        log(`Setting with ID 0x${settingId.toString(16)} not found.`, true);
+        log(`Setting with ID ${settingId} not found.`, true);
         return;
       }
 
       const setting = settingsData.settings[settingKey];
+
+      // Validation
+      let isValid = validateInput(newValue, setting);
+      if (!isValid) return;
+
       let valueBytes;
 
+      if (setting.conversion === 'uint32') {
+        const intValue = parseInt(newValue, 10);
+        valueBytes = new Uint8Array(new Uint32Array([intValue]).buffer);
+      } else if (setting.conversion === 'uint16') {
+        const intValue = parseInt(newValue, 10);
+        valueBytes = new Uint8Array(new Uint16Array([intValue]).buffer);
+      } else if (setting.conversion === 'uint8') {
+        valueBytes = new Uint8Array([parseInt(newValue, 10)]);
+      } else if (setting.conversion === 'int32') {
+        const intValue = parseInt(newValue, 10);
+        valueBytes = new Uint8Array(new Int32Array([intValue]).buffer);
+      } else if (setting.conversion === 'int8') {
+        valueBytes = new Uint8Array([parseInt(newValue, 10)]);
+      } else if (setting.conversion === 'bool') {
+        valueBytes = new Uint8Array([newValue.toLowerCase() === 'true' ? 1 : 0]);
+      } else if (setting.conversion === 'byte_array') {
+        valueBytes = new Uint8Array(newValue.replace(/[{}]/g, '').split(',').map(byte => parseInt(byte, 16)));
+      }
+
+      const length = valueBytes.length;
+      const command = [0x03, parseInt(settingId, 16), length, ...valueBytes];
+      const commandBuffer = new Uint8Array(command).buffer;
+
+      log(`Sending update for ${settingKey} (ID: ${settingId}) with value: ${newValue}`);
+
       try {
-        if (setting.conversion === 'uint32') {
-          const newValueInt = parseInt(newValue, 10);
-          valueBytes = [newValueInt & 0xFF, (newValueInt >> 8) & 0xFF, (newValueInt >> 16) & 0xFF, (newValueInt >> 24) & 0xFF];
-        } else if (setting.conversion === 'uint8') {
-          valueBytes = [parseInt(newValue, 10)];
-        } else if (setting.conversion === 'int32') {
-          const newValueInt = parseInt(newValue, 10);
-          valueBytes = [newValueInt & 0xFF, (newValueInt >> 8) & 0xFF, (newValueInt >> 16) & 0xFF, (newValueInt >> 24) & 0xFF];
-        } else if (setting.conversion === 'uint16') {
-          const newValueInt = parseInt(newValue, 10);
-          valueBytes = [newValueInt & 0xFF, (newValueInt >> 8) & 0xFF];
-        } else if (setting.conversion === 'int16') {
-          const newValueInt = parseInt(newValue, 10);
-          valueBytes = [newValueInt & 0xFF, (newValueInt >> 8) & 0xFF];
-        } else if (setting.conversion === 'int8') {
-          valueBytes = [parseInt(newValue, 10)];
-        } else if (setting.conversion === 'bool') {
-          valueBytes = [newValue === 'true' ? 1 : 0];
-        } else if (setting.conversion === 'byte_array') {
-          valueBytes = newValue.split(',').map(byte => parseInt(byte, 16));
-        } else {
-          log(`Unsupported conversion type: ${setting.conversion}`, true);
-          return;
-        }
-
-        const length = valueBytes.length;
-        const command = [0x03, parseInt(settingId, 16), length, ...valueBytes];
-        const commandBuffer = new Uint8Array(command).buffer;
-
-        log(`Sending update for ${settingKey} (ID: ${setting.id}): [${command.map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
-
         await rxCharacteristic.writeValue(commandBuffer);
-        log(`Value updated successfully for ${settingKey} (ID: ${setting.id})`);
-
-        await fetchSingleSetting(settingId);
-
-        const valueElement = document.getElementById(`setting-${settingId}`).querySelector('.value');
-        valueElement.classList.add('value-updated'); // Set light green background after updating
-
+        log(`Value updated successfully for ${settingKey} (ID: ${settingId})`);
+        setTimeout(() => fetchSingleSetting(settingId), 1000);
       } catch (error) {
         log(`Error sending update for ${settingKey}: ${error.message}`, true);
       }
     }
 
+    function validateInput(newValue, setting) {
+      const inputElement = document.getElementById(`new-value-${setting.id}`);
+
+      if (setting.conversion === 'uint32' || setting.conversion === 'uint16' || setting.conversion === 'uint8' || setting.conversion === 'int32') {
+        const parsedValue = parseInt(newValue, 10);
+        if (isNaN(parsedValue) || parsedValue < setting.min || parsedValue > setting.max) {
+          log(`Invalid value for ${setting.id}: Must be between ${setting.min} and ${setting.max}`, true);
+          inputElement.classList.add('invalid');
+          return false;
+        }
+      } else if (setting.conversion === 'bool') {
+        if (newValue.toLowerCase() !== 'true' && newValue.toLowerCase() !== 'false') {
+          log(`Invalid value for ${setting.id}: Must be 'true' or 'false'`, true);
+          inputElement.classList.add('invalid');
+          return false;
+        }
+      } else if (setting.conversion === 'byte_array') {
+        const byteArray = newValue.replace(/[{}]/g, '').split(',');
+        if (byteArray.length !== setting.length || byteArray.some(byte => isNaN(parseInt(byte, 16)))) {
+          log(`Invalid byte array for ${setting.id}. Expected length: ${setting.length}`, true);
+          inputElement.classList.add('invalid');
+          return false;
+        }
+      }
+
+      inputElement.classList.remove('invalid');
+      return true;
+    }
+
+    async function fetchSingleSetting(settingId) {
+      const settingKey = findSettingById(parseInt(settingId, 16));
+      const setting = settingsData.settings[settingKey];
+      const command = [0x20, 0xa8, 0x01, parseInt(settingId, 16)];
+      const commandBuffer = new Uint8Array(command).buffer;
+
+      log(`Re-fetching value for ${settingKey} (ID: ${settingId})`);
+
+      try {
+        await rxCharacteristic.writeValue(commandBuffer);
+      } catch (error) {
+        log(`Error re-fetching value for ${settingKey}: ${error.message}`, true);
+      }
+    }
   </script>
 </body>
 </html>
-
