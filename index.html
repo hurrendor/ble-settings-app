@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenCollar Edge BLE Web Connect</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .log {
+      background-color: #f9f9f9;
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 200px;
+      overflow-y: scroll;
+      white-space: pre-wrap;
+    }
+    .log-entry {
+      margin-bottom: 5px;
+    }
+    .controls {
+      margin-bottom: 20px;
+    }
+    .settings-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .settings-table th, .settings-table td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    .settings-table th {
+      background-color: #f2f2f2;
+    }
+    .settings-table .value-column {
+      background-color: #e0f7fa;
+    }
+    .value-updated {
+      background-color: #ccffcc; /* Light green background for updated values */
+    }
+    .spinner {
+      border: 4px solid rgba(0, 0, 0, 0.1);
+      border-left-color: #000;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    /* Ensure Value, Default, Min, and Max columns have equal width */
+    .equal-width td:nth-child(3),
+    .equal-width td:nth-child(4),
+    .equal-width td:nth-child(5),
+    .equal-width td:nth-child(6) {
+      width: 15%;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>OpenCollar Edge BLE Web Connect</h1>
+
+  <div class="controls">
+    <button id="connect-button">Connect to Device</button>
+    <button id="disconnect-button" disabled>Disconnect</button>
+    <h2>Status: <span id="status">Disconnected</span></h2>
+    <h2>Device Name: <span id="device-name"></span></h2>
+  </div>
+
+  <h2>Log</h2>
+  <div class="log" id="log"></div>
+
+  <h2>Settings</h2>
+  <table class="settings-table equal-width" id="settings-table">
+    <thead>
+      <tr>
+        <th>Setting Name</th>
+        <th>ID</th>
+        <th class="value-column">Value</th>
+        <th>Default</th>
+        <th>Min</th>
+        <th>Max</th>
+        <th>New Value</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let device, server, txCharacteristic, rxCharacteristic;
+    let settingsData = null;
+    let currentSettingIndex = 0;
+    const spinnerHtml = '<div class="spinner"></div>';
+    let settingsKeys = [];
+
+    async function loadSettings() {
+      try {
+        const response = await fetch('./settings-v6.8.1.json');
+        settingsData = await response.json();
+        log("Settings successfully loaded.");
+        settingsKeys = Object.keys(settingsData.settings);
+        displaySettings();
+      } catch (error) {
+        log(`Error loading settings: ${error.message}`, true);
+      }
+    }
+
+    function displaySettings() {
+      const settingsTableBody = document.querySelector('#settings-table tbody');
+      settingsTableBody.innerHTML = '';
+
+      for (const key of settingsKeys) {
+        const setting = settingsData.settings[key];
+        const row = document.createElement('tr');
+        row.setAttribute('id', `setting-${setting.id}`);
+        row.innerHTML = `
+          <td>${key}</td>
+          <td>${setting.id}</td>
+          <td class="value">${spinnerHtml}</td>
+          <td>${setting.default}</td>
+          <td>${setting.min}</td>
+          <td>${setting.max}</td>
+          <td><input type="text" id="new-value-${setting.id}" /></td>
+          <td><button onclick="updateSetting('${setting.id}')">Update</button></td>
+        `;
+        settingsTableBody.appendChild(row);
+      }
+    }
+
+    function log(message, isError = false) {
+      const logElement = document.getElementById('log');
+      const logEntry = document.createElement('div');
+      logEntry.classList.add('log-entry');
+      logEntry.style.color = isError ? 'red' : 'black';
+      logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logElement.appendChild(logEntry);
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+
+    document.getElementById('connect-button').addEventListener('click', async function () {
+      try {
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ manufacturerData: [{ companyIdentifier: 0x0A61 }] }],
+          optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
+        });
+
+        server = await device.gatt.connect();
+        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+        txCharacteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+        rxCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
+
+        await txCharacteristic.startNotifications();
+        txCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
+
+        await loadSettings();
+
+        document.getElementById('status').textContent = 'Connected';
+        document.getElementById('device-name').textContent = device.name;
+        document.getElementById('disconnect-button').disabled = false;
+
+        log(`Connected to device: ${device.name}`);
+        currentSettingIndex = 0;
+        fetchNextSetting();
+      } catch (error) {
+        log(`Error: ${error.message}`, true);
+      }
+    });
+
+    document.getElementById('disconnect-button').addEventListener('click', function () {
+      if (device && device.gatt.connected) {
+        device.gatt.disconnect();
+        document.getElementById('status').textContent = 'Disconnected';
+        document.getElementById('device-name').textContent = '';
+        document.getElementById('disconnect-button').disabled = true;
+        log('Disconnected from device');
+        document.querySelector('#settings-table tbody').innerHTML = '';
+        document.getElementById('log').innerHTML = '';
+      }
+    });
+
+    async function handleNotifications(event) {
+      const value = event.target.value;
+      const data = new Uint8Array(value.buffer);
+
+      log(`Raw data received: [${Array.from(data).map(byte => '0x' + byte.toString(16).padStart(2, '0')).join(', ')}]`);
+
+      const port = data[0];
+      if (port === 3) {
+        decodeSettingResponse(data);
+      } else {
+        log("No decoder available for this port", true);
+      }
+    }
+
+    function decodeSettingResponse(data) {
+      const settingId = data[1];
+      const length = data[2];
+      const valueBytes = data.slice(3, 3 + length);
+
+      const settingKey = findSettingById(settingId);
+
+      if (!settingKey) {
+        log(`Unknown setting ID: 0x${settingId.toString(16).padStart(2, '0')}`, true);
+        return;
+      }
+
+      let value;
+      const setting = settingsData.settings[settingKey];
+
+      if (setting.conversion === 'uint32') {
+        value = new DataView(new Uint8Array(valueBytes).buffer).getUint32(0, true);
+      } else if (setting.conversion === 'uint8') {
+        value = valueBytes[0];
+      } else if (setting.conversion === 'int32') {
+        value = new DataView(new Uint8Array(valueBytes).buffer).getInt32(0, true);
+      } else if (setting.conversion === 'uint16') {
+        value = new DataView(new Uint8Array(valueBytes).buffer).getUint16(0, true);
+      } else if (setting.conversion === 'int16') {
+        value = new DataView(new Uint8Array(valueBytes).buffer).getInt16(0, true);
+      } else if (setting.conversion === 'int8') {
+        value = new DataView(new Uint8Array(valueBytes).buffer).getInt8(0);
+      } else if (setting.conversion === 'bool') {
+        value = valueBytes[0] !== 0;
+      } else if (setting.conversion === 'string') {
+        value = new TextDecoder().decode(new Uint8Array(valueBytes));
+      } else if (setting.conversion === 'byte_array') {
+        value = `{${Array.from(valueBytes).map(byte => '0x' + byte.toString(16).padStart(2, '0')).join(', ')}}`;
+      } else {
+        log(`Unsupported conversion type: ${setting.conversion}`, true);
+        value = "Unsupported type";
+      }
+
+      updateSettingDisplay(setting.id, value);
+      fetchNextSetting();
+    }
+
+    function updateSettingDisplay(settingId, value) {
+      const settingElement = document.getElementById(`setting-${settingId}`);
+      if (settingElement) {
+        const valueElement = settingElement.querySelector('.value');
+        valueElement.innerHTML = value;
+      }
+    }
+
+    function findSettingById(targetId) {
+      for (const key in settingsData.settings) {
+        const setting = settingsData.settings[key];
+        const hexId = parseInt(setting.id, 16);
+        if (hexId === targetId) {
+          return key;
+        }
+      }
+      return null;
+    }
+
+    async function fetchNextSetting() {
+      if (currentSettingIndex >= settingsKeys.length) {
+        log("All settings have been retrieved.");
+        return;
+      }
+
+      const key = settingsKeys[currentSettingIndex];
+      const setting = settingsData.settings[key];
+      const settingId = parseInt(setting.id, 16);
+
+      const command = [0x20, 0xa8, 0x01, settingId];
+      const commandBuffer = new Uint8Array(command).buffer;
+
+      log(`Requesting value for ${key} (ID: ${setting.id})`);
+
+      try {
+        await rxCharacteristic.writeValue(commandBuffer);
+      } catch (error) {
+        log(`Error sending request for ${key}: ${error.message}`, true);
+      }
+
+      currentSettingIndex++;
+    }
+
+    async function fetchSingleSetting(settingId) {
+      const setting = settingsData.settings[findSettingById(parseInt(settingId, 16))];
+      const command = [0x20, 0xa8, 0x01, parseInt(settingId, 16)];
+      const commandBuffer = new Uint8Array(command).buffer;
+
+      log(`Re-fetching value for ${setting.id}`);
+
+      try {
+        await rxCharacteristic.writeValue(commandBuffer);
+      } catch (error) {
+        log(`Error re-fetching value for ${setting.id}: ${error.message}`, true);
+      }
+    }
+
+    async function updateSetting(settingId) {
+      const inputField = document.getElementById(`new-value-${settingId}`);
+      if (!inputField) {
+        log(`Input field for setting ID ${settingId} not found.`, true);
+        return;
+      }
+
+      const newValue = inputField.value;
+      const settingKey = findSettingById(parseInt(settingId, 16));
+      if (!settingKey) {
+        log(`Setting with ID 0x${settingId.toString(16)} not found.`, true);
+        return;
+      }
+
+      const setting = settingsData.settings[settingKey];
+      let valueBytes;
+
+      try {
+        if (setting.conversion === 'uint32') {
+          const newValueInt = parseInt(newValue, 10);
+          valueBytes = [newValueInt & 0xFF, (newValueInt >> 8) & 0xFF, (newValueInt >> 16) & 0xFF, (newValueInt >> 24) & 0xFF];
+        } else if (setting.conversion === 'uint8') {
+          valueBytes = [parseInt(newValue, 10)];
+        } else if (setting.conversion === 'int32') {
+          const newValueInt = parseInt(newValue, 10);
+          valueBytes = [newValueInt & 0xFF, (newValueInt >> 8) & 0xFF, (newValueInt >> 16) & 0xFF, (newValueInt >> 24) & 0xFF];
+        } else if (setting.conversion === 'uint16') {
+          const newValueInt = parseInt(newValue, 10);
+          valueBytes = [newValueInt & 0xFF, (newValueInt >> 8) & 0xFF];
+        } else if (setting.conversion === 'int16') {
+          const newValueInt = parseInt(newValue, 10);
+          valueBytes = [newValueInt & 0xFF, (newValueInt >> 8) & 0xFF];
+        } else if (setting.conversion === 'int8') {
+          valueBytes = [parseInt(newValue, 10)];
+        } else if (setting.conversion === 'bool') {
+          valueBytes = [newValue === 'true' ? 1 : 0];
+        } else if (setting.conversion === 'byte_array') {
+          valueBytes = newValue.split(',').map(byte => parseInt(byte, 16));
+        } else {
+          log(`Unsupported conversion type: ${setting.conversion}`, true);
+          return;
+        }
+
+        const length = valueBytes.length;
+        const command = [0x03, parseInt(settingId, 16), length, ...valueBytes];
+        const commandBuffer = new Uint8Array(command).buffer;
+
+        log(`Sending update for ${settingKey} (ID: ${setting.id}): [${command.map(b => '0x' + b.toString(16).padStart(2, '0')).join(', ')}]`);
+
+        await rxCharacteristic.writeValue(commandBuffer);
+        log(`Value updated successfully for ${settingKey} (ID: ${setting.id})`);
+
+        await fetchSingleSetting(settingId);
+
+        const valueElement = document.getElementById(`setting-${settingId}`).querySelector('.value');
+        valueElement.classList.add('value-updated'); // Set light green background after updating
+
+      } catch (error) {
+        log(`Error sending update for ${settingKey}: ${error.message}`, true);
+      }
+    }
+
+  </script>
+</body>
+</html>
+
