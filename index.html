@@ -79,6 +79,8 @@
       width: 20px;
       height: 20px;
       animation: spin 1s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
     }
     @keyframes spin {
       0% {
@@ -122,6 +124,14 @@
   <div class="controls">
     <button id="connect-button">Connect to Device</button>
     <button id="disconnect-button" disabled>Disconnect</button>
+    <div id="settings-selection" style="display:none;">
+      <label for="settings-dropdown">Choose a settings file:</label>
+      <select id="settings-dropdown"></select>
+      <button id="load-settings-button">Load setting.json</button> <!-- Load button -->
+    </div>
+    <div id="spinner-container" style="display: none;">
+      <div class="spinner"></div> <!-- Spinner -->
+    </div>
     <h2>Status: <span id="status">Disconnected</span></h2>
     <h2>Device Name: <span id="device-name"></span></h2>
   </div>
@@ -167,13 +177,44 @@
       }
     });
 
-    async function loadSettings() {
+    document.getElementById('load-settings-button').addEventListener('click', function() {
+      const selectedFile = document.getElementById('settings-dropdown').value;
+      log(`Loading settings from ${selectedFile}...`);
+      loadSettings(selectedFile); // Load the selected JSON file
+    });
+
+    async function loadAvailableSettings() {
       try {
-        const response = await fetch('./settings-v6.8.1.json');
+        // Static list of settings files
+        const files = [
+          "settings-v6.8.1.json",
+          "settings-v4.4.2.json"
+        ];
+        const dropdown = document.getElementById('settings-dropdown');
+        dropdown.innerHTML = ''; // Clear previous options
+
+        files.forEach(file => {
+          const option = document.createElement('option');
+          option.value = `./settings/${file}`;
+          option.textContent = file;
+          dropdown.appendChild(option);
+        });
+
+        document.getElementById('settings-selection').style.display = 'block'; // Show the dropdown and load button
+      } catch (error) {
+        log(`Error fetching settings files: ${error.message}`, true);
+      }
+    }
+
+    async function loadSettings(selectedFile) {
+      try {
+        const response = await fetch(selectedFile); // Load the selected JSON file
         settingsData = await response.json();
-        log("Settings successfully loaded.");
+        log(`Settings from ${selectedFile} loaded successfully.`);
         settingsKeys = Object.keys(settingsData.settings);
         displaySettings();
+        currentSettingIndex = 0;
+        fetchNextSetting(); // Start fetching settings after loading the JSON
       } catch (error) {
         log(`Error loading settings: ${error.message}`, true);
       }
@@ -226,15 +267,14 @@
         await txCharacteristic.startNotifications();
         txCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
 
-        await loadSettings();
-
         document.getElementById('status').textContent = 'Connected';
         document.getElementById('device-name').textContent = device.name;
         document.getElementById('disconnect-button').disabled = false;
 
         log(`Connected to device: ${device.name}`);
-        currentSettingIndex = 0;
-        fetchNextSetting();
+
+        // Load available settings files (instead of loading automatically)
+        loadAvailableSettings();
       } catch (error) {
         log(`Error: ${error.message}`, true);
       }
@@ -246,6 +286,7 @@
         document.getElementById('status').textContent = 'Disconnected';
         document.getElementById('device-name').textContent = '';
         document.getElementById('disconnect-button').disabled = true;
+        document.getElementById('settings-selection').style.display = 'none'; // Hide settings dropdown and button
         log('Disconnected from device');
         document.querySelector('#settings-table tbody').innerHTML = '';
         document.getElementById('log').innerHTML = '';
@@ -290,7 +331,6 @@
       } else if (setting.conversion === 'int32') {
         value = new DataView(new Uint8Array(valueBytes).buffer).getInt32(0, true);
       } else if (setting.conversion === 'int8') {
-        // Correct handling of int8 negative values
         value = new DataView(new Uint8Array(valueBytes).buffer).getInt8(0);
       } else if (setting.conversion === 'bool') {
         value = valueBytes[0] !== 0;
@@ -369,9 +409,8 @@
 
       const setting = settingsData.settings[settingKey];
 
-      // Validation
-      let isValid = validateInput(newValue, setting);
-      if (!isValid) return;
+      // Validate input
+      if (!validateInput(newValue, setting)) return;
 
       let valueBytes;
 
@@ -455,3 +494,4 @@
   </script>
 </body>
 </html>
+
