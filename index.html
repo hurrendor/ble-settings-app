@@ -52,7 +52,7 @@
       margin-top: 5px;
     }
 
-    .setting h3 {
+    .setting h4 {
       padding: 0;
       margin: 0 0 5px;
       font-size: 16px;
@@ -65,7 +65,7 @@
       display: block;
     }
 
-    #settings-section {
+    .settings-container {
       display: grid;
       gap: 10px;
       grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
@@ -133,7 +133,11 @@
       box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 0.5);
     }
 
-    .section h3 {
+    #settings-section h3 {
+      text-transform: capitalize;
+    }
+
+    .section h4 {
       color: #52735E;
       margin: 0 0 10px;
     }
@@ -426,7 +430,7 @@
 
       infoContainer.innerHTML += `
         <div class="section">
-          <h3>Device Info</h3>
+          <h4>Device Info</h4>
           <div class="data-item"><span>Device name:</span><span>${device.name}</span></div>
           <div class="data-item"><span>Hardware Version:</span><span>${statusMessage.ver_hw_major}.${statusMessage.ver_hw_minor}</span></div>
           <div class="data-item"><span>Firmware Version:</span><span>${statusMessage.ver_fw_major}.${statusMessage.ver_fw_minor}</span></div>
@@ -439,7 +443,7 @@
 
       infoContainer.innerHTML += `
         <div class="section">
-          <h3>General Information</h3>
+          <h4>General Information</h4>
           <div class="data-item"><span>Reset:</span><span>${decodeReset(statusMessage.reset)}</span></div>
           <div class="data-item"><span>Battery:</span><span>${statusMessage.bat}mV</span></div>
           <div class="data-item"><span>Charging:</span><span>${statusMessage.chg}</span></div>
@@ -466,47 +470,100 @@
 
         await fetchAllSettings();
       } catch (error) {
+        console.error(error);
         log(`Error loading settings: ${error.message}`, true);
       }
+    }
+
+    // Function to group settings by the prefix, move single-item groups to "other", and sort
+    function groupAndSortSettings(settings) {
+      const grouped = {};
+      const other = {};
+
+      // Group settings by prefix
+      for (const key in settings) {
+        const prefix = key.split('_')[0];
+
+        if (!grouped[prefix]) {
+          grouped[prefix] = {};
+        }
+
+        grouped[prefix][key] = settings[key];
+      }
+
+      // Move single-item groups to "other"
+      for (const prefix in grouped) {
+        if (Object.keys(grouped[prefix]).length === 1) {
+          const [key] = Object.keys(grouped[prefix]);
+          other[key] = grouped[prefix][key];
+          delete grouped[prefix];
+        }
+      }
+
+      // Add the "other" group if needed
+      if (Object.keys(other).length > 0) {
+        grouped["_other"] = other;
+      }
+
+      // Sort the groups alphabetically
+      const sortedGroups = Object.keys(grouped).sort().reduce((acc, group) => {
+        // Sort the keys within each group alphabetically
+        acc[group] = Object.keys(grouped[group]).sort().reduce((groupAcc, key) => {
+          groupAcc[key] = grouped[group][key];
+          return groupAcc;
+        }, {});
+        return acc;
+      }, {});
+
+      return sortedGroups;
     }
 
     function displaySettings() {
       const settingsSection = document.getElementById('settings-section');
       settingsSection.innerHTML = '';
+      for (const [groupName, group] of Object.entries(groupAndSortSettings(settingsData.settings))) {
+        const settingsContainer = document.createElement('div');
+        settingsContainer.className = 'settings-container';
 
-      for (const [key, setting] of Object.entries(settingsData.settings)) {
-        const row = document.createElement('div');
-        row.className = 'setting';
-        row.setAttribute('id', `setting-${setting.id}`);
-        html = `
-          <h3>${key} (${setting.id})</h3>
+        const groupHeading = document.createElement('h3');
+        groupHeading.textContent = groupName.replace(/_/g, "");
+        settingsSection.appendChild(groupHeading);
+
+        for (const [key, setting] of Object.entries(group)) {
+          const row = document.createElement('div');
+          row.className = 'setting';
+          row.setAttribute('id', `setting-${setting.id}`);
+          html = `
+          <h4>${key} (${setting.id})</h4>
         `;
 
-        if (setting.conversion === 'bool') {
-          html += `
+          if (setting.conversion === 'bool') {
+            html += `
               <select id="new-value-${setting.id}" disabled>
                 <option value="true">true</option>
                 <option value="false">false</option>
               </select>
           `;
-        } else if (setting.conversion === 'uint32' || setting.conversion === 'uint16' || setting.conversion === 'uint8' || setting.conversion === 'int32' || setting.conversion === 'int8') {
-          html += `<input type="number" id="new-value-${setting.id}" min="${setting.min}" max="${setting.max}" disabled/>`;
-        } else if (setting.conversion === 'float') {
-          html += `<input type="number" id="new-value-${setting.id}" min="${setting.min}" max="${setting.max}" step="0.01" disabled/>`;
-        } else if (setting.conversion === 'byte_array') {
-          html += `<textarea id="new-value-${setting.id}" rows="4" disabled/></textarea>`;
-        } else {
-          html += `<input type="text" id="new-value-${setting.id}" disabled/>`;
-        }
+          } else if (setting.conversion === 'uint32' || setting.conversion === 'uint16' || setting.conversion === 'uint8' || setting.conversion === 'int32' || setting.conversion === 'int8') {
+            html += `<input type="number" id="new-value-${setting.id}" min="${setting.min}" max="${setting.max}" disabled/>`;
+          } else if (setting.conversion === 'float') {
+            html += `<input type="number" id="new-value-${setting.id}" min="${setting.min}" max="${setting.max}" step="0.01" disabled/>`;
+          } else if (setting.conversion === 'byte_array') {
+            html += `<textarea id="new-value-${setting.id}" rows="4" disabled/></textarea>`;
+          } else {
+            html += `<input type="text" id="new-value-${setting.id}" disabled/>`;
+          }
 
-        html += `
+          html += `
           <div>
             <button id="update-button-${setting.id}" onclick="updateSetting('${setting.id}')" disabled>Update</button>
             <button id="reset-button-${setting.id}" onclick="resetSetting('${setting.id}')" class="secondary" title="Default value: ${setting.default}" disabled>Set default</button>
           </div>
         `;
-        row.innerHTML = html;
-        settingsSection.appendChild(row);
+          row.innerHTML = html;
+          settingsContainer.appendChild(row);
+        }
+        settingsSection.appendChild(settingsContainer);
       }
     }
 
