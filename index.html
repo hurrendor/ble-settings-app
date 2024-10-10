@@ -282,79 +282,116 @@
       }
     }
 
-    function decodeUint8(byte, min, max) {
-      return (byte * (max - min)) / 255 + min;
+    function decodeHwFwType(t) {
+      switch (t) {
+        case 0: return "default";
+        case 1: return "rhinoedge";
+        case 2: return "elephantedge";
+        case 3: return "wisentedge";
+        case 4: return "cattracker";
+        case 5: return "rangeredge";
+        case 6: return "rhinopuck";
+        default: return "unknown";
+      }
     }
 
+    function decodeReset(reset) {
+      switch (reset) {
+        case 1: return "RESETPIN";
+        case 2: return "DOG";
+        case 4: return "SREQ";
+        case 8: return "LOCKUP";
+        default: return "unknown";
+      }
+    }
+
+
     function decodeStatusMessage(bytes) {
-      function decodeType(t) {
-        switch (t) {
-          case 0: return "default";
-          case 1: return "rhinoedge";
-          case 2: return "elephantedge";
-          case 3: return "wisentedge";
-          case 4: return "cattracker";
-          case 5: return "rangeredge";
-          case 6: return "rhinopuck";
-          default: return "unknown";
-        }
+      function decode_uint8(byte, min, max) {
+        var val;
+        val = byte * (max - min) / 255 + min;
+        return val;
       }
-
-      function decodeReset(reset) {
-        switch (reset) {
-          case 1: return "RESETPIN";
-          case 2: return "DOG";
-          case 4: return "SREQ";
-          case 8: return "LOCKUP";
-          default: return "unknown";
-        }
-      }
-
-      const reset = bytes[0];
-      const err = bytes[1];
-      const bat = bytes[2] * 10 + 2500;
-      const operation = bytes[3];
-      const temp = decodeUint8(bytes[4], -100, 100);
-      const uptime = bytes[5];
-      const acc_x = decodeUint8(bytes[6], -100, 100);
-      const acc_y = decodeUint8(bytes[7], -100, 100);
-      const acc_z = decodeUint8(bytes[8], -100, 100);
-      const hw_version = bytes[9];
-      const ver_hw_minor = hw_version & 0x0f;
-      const ver_hw_major = hw_version >> 4;
-      const fw_version = bytes[10];
-      const ver_fw_minor = fw_version & 0x0f;
-      const ver_fw_major = fw_version >> 4;
-
-      const ver_hw_type = bytes[11] & 0x0f;
-      const ver_fw_type = bytes[11] >> 4;
-      const lr_sat = bytes[12];
-      const lr_fix = bytes[13];
-
+      // Skip header 0 and 1
+      var reset = bytes[2];
+      var err = bytes[3];
+      var bat = (bytes[4] * 10) + 2500;
+      var operation = bytes[5];
+      var msg = 0;
+      if (operation & 1) msg = 1;
+      var locked = 0;
+      if (operation & 2) locked = 1;
+      var lr_join = 0;
+      if (operation & 4) lr_join = 1;
+      var lr_sat = operation >> 4;
+      var temp = decode_uint8(bytes[6], -100, 100);
+      var uptime = bytes[7];
+      var acc_x = decode_uint8(bytes[8], -100, 100);
+      var acc_y = decode_uint8(bytes[9], -100, 100);
+      var acc_z = decode_uint8(bytes[10], -100, 100);
+      var version = bytes[11];
+      var ver_hw_minor = version & 0x0F;
+      var ver_hw_major = version >> 4;
+      version = bytes[12];
+      var ver_fw_minor = version & 0x0F;
+      var ver_fw_major = version >> 4;
+      var ver_hw_type = bytes[13] & 0x0F;
+      var ver_fw_type = bytes[13] >> 4;
+      var chg = 0;
+      if (bytes[14] > 0) chg = (bytes[14] * 100) + 5000;
+      var features = bytes[15];
+      var sat_support = 0;
+      if (features & 1) sat_support = 1;
+      var rf_scan = 0;
+      if (features & 2) rf_scan = 1;
+      var fence = 0;
+      if (features & 4) fence = 1;
+      var sat_try = features >> 4;
+      //Errors
+      var err_lr = 0;
+      if (err & 1) err_lr = 1;
+      var err_ble = 0;
+      if (err & 2) err_ble = 1;
+      var err_ublox = 0;
+      if (err & 4) err_ublox = 1;
+      var err_acc = 0;
+      if (err & 8) err_acc = 1;
+      var err_bat = 0;
+      if (err & 16) err_bat = 1;
+      var err_ublox_fix = 0;
+      if (err & 32) err_ublox_fix = 1;
+      var err_flash = 0;
+      if (err & 64) err_flash = 1;
       return {
-        "reset": decodeReset(reset),
-        "bat": bat,
-        "charging": Boolean(operation & 1),
-        "locked": Boolean(operation & 2),
-        "temp": temp.toFixed(2),
-        "uptime": uptime,
-        "acc_x": acc_x.toFixed(2),
-        "acc_y": acc_y.toFixed(2),
-        "acc_z": acc_z.toFixed(2),
-        "lr_sat": lr_sat,
-        "lr_fix": lr_fix,
-        "err_lr": Boolean(err & 1),
-        "err_ble": Boolean(err & 2),
-        "err_ublox": Boolean(err & 4),
-        "err_acc": Boolean(err & 8),
-        "err_bat": Boolean(err & 16),
-        "err_ublox_fix": Boolean(err & 32),
-        "err_flash": Boolean(err & 64),
-        "ublox_busy": Boolean(err & 128),
-        "ver_hw": `${ver_hw_major}.${ver_hw_minor}`,
-        "ver_fw": `${ver_fw_major}.${ver_fw_minor}`,
-        "ver_hw_type": decodeType(ver_hw_type),
-        "ver_fw_type": decodeType(ver_fw_type)
+        reset: reset,
+        bat: bat,
+        chg: chg,
+        temp: temp,
+        uptime: uptime,
+        locked: locked,
+        msg: msg,
+        acc_x: acc_x,
+        acc_y: acc_y,
+        acc_z: acc_z,
+        lr_sat: lr_sat,
+        err_lr: err_lr,
+        err_lr_join: lr_join,
+        err_ble: err_ble,
+        err_ublox: err_ublox,
+        err_acc: err_acc,
+        err_bat: err_bat,
+        err_ublox_fix: err_ublox_fix,
+        err_flash: err_flash,
+        ver_fw_major: ver_fw_major,
+        ver_fw_minor: ver_fw_minor,
+        ver_hw_major: ver_hw_major,
+        ver_hw_minor: ver_hw_minor,
+        ver_hw_type: ver_hw_type,
+        ver_fw_type: ver_fw_type,
+        sat_support: sat_support,
+        sat_try: sat_try,
+        rf_scan: rf_scan,
+        fence: fence,
       };
     }
 
@@ -372,7 +409,7 @@
             errorsDiv.innerHTML = 'Errors: ';
             hasErrors = true;
           }
-          
+
           errorsDiv.innerHTML += `<span>${key.slice(4).toUpperCase()}</span>,`;
         }
       }
@@ -391,25 +428,25 @@
         <div class="section">
           <h3>Device Info</h3>
           <div class="data-item"><span>Device name:</span><span>${device.name}</span></div>
-          <div class="data-item"><span>Hardware Version:</span><span>${statusMessage.ver_hw}</span></div>
-          <div class="data-item"><span>Firmware Version:</span><span>${statusMessage.ver_fw}</span></div>
-          <div class="data-item"><span>Hardware Type:</span><span>${statusMessage.ver_hw_type}</span></div>
-          <div class="data-item"><span>Firmware Type:</span><span>${statusMessage.ver_fw_type}</span></div>
+          <div class="data-item"><span>Hardware Version:</span><span>${statusMessage.ver_hw_major}.${statusMessage.ver_hw_minor}</span></div>
+          <div class="data-item"><span>Firmware Version:</span><span>${statusMessage.ver_fw_major}.${statusMessage.ver_fw_minor}</span></div>
+          <div class="data-item"><span>Hardware Type:</span><span>${decodeHwFwType(statusMessage.ver_hw_type)}</span></div>
+          <div class="data-item"><span>Firmware Type:</span><span>${decodeHwFwType(statusMessage.ver_fw_type)}</span></div>
           <div class="data-item"><span>LR Sat:</span><span>${statusMessage.lr_sat}</span></div>
-          <div class="data-item"><span>LR Fix:</span><span>${statusMessage.lr_fix}</span></div>
+          <div class="data-item"><span>Msg:</span><span>${statusMessage.msg}</span></div>
         </div>
       `;
 
       infoContainer.innerHTML += `
         <div class="section">
           <h3>General Information</h3>
-          <div class="data-item"><span>Reset:</span><span>${statusMessage.reset}</span></div>
+          <div class="data-item"><span>Reset:</span><span>${decodeReset(statusMessage.reset)}</span></div>
           <div class="data-item"><span>Battery:</span><span>${statusMessage.bat}mV</span></div>
-          <div class="data-item"><span>Charging:</span><span>${statusMessage.charging}</span></div>
+          <div class="data-item"><span>Charging:</span><span>${statusMessage.chg}</span></div>
           <div class="data-item"><span>Locked:</span><span>${statusMessage.locked}</span></div>
-          <div class="data-item"><span>Temperature:</span><span>${statusMessage.temp}°C</span></div>
+          <div class="data-item"><span>Temperature:</span><span>${statusMessage.temp.toFixed(2)}°C</span></div>
           <div class="data-item"><span>Uptime:</span><span>${statusMessage.uptime} hours</span></div>
-          <div class="data-item"><span>Acceleration:</span><span>${statusMessage.acc_x}, ${statusMessage.acc_y}, ${statusMessage.acc_z}</span></div>
+          <div class="data-item"><span>Acceleration:</span><span>${statusMessage.acc_x.toFixed(2)}, ${statusMessage.acc_y.toFixed(2)}, ${statusMessage.acc_z.toFixed(2)}</span></div>
         </div>
       `;
     }
@@ -538,7 +575,7 @@
         if (port === 3 || port === 30) {
           readPromiseResolve(decodeBleValueResponse(data));
         } else if (port === 4) {
-          readPromiseResolve(decodeStatusMessage(data.slice(3)));
+          readPromiseResolve(decodeStatusMessage(data.slice(1)));
         } else {
           throw new Error('No decoder available for port: ' + port);
         }
