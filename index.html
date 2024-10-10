@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,8 +9,10 @@
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
-      background-color: #90AE9B; /* Light green background */
+      background-color: #90AE9B;
+      /* Light green background */
     }
+
     .log {
       background-color: #f9f9f9;
       border: 1px solid #ccc;
@@ -17,80 +20,67 @@
       height: 200px;
       overflow-y: scroll;
       white-space: pre-wrap;
-      display: none; /* Hidden by default */
+      display: none;
+      /* Hidden by default */
     }
+
     .log-entry {
       margin-bottom: 5px;
     }
+
     .controls {
       margin-bottom: 20px;
     }
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 20px;
-      table-layout: fixed;
-    }
-    .data-table th, .data-table td {
-      border: 1px solid #ccc;
-      padding: 8px;
-      text-align: left;
-      vertical-align: top;
+
+    .setting {
+      padding: 10px;
       word-wrap: break-word;
-    }
-    .data-table th {
-      background-color: #f2f2f2;
-    }
-
-    .name-column {
-      width: 18%;
-      white-space: normal;
-    }
-    .id-column {
-      width: 5%;
-      white-space: nowrap;
-    }
-    .value-column {
-      background-color: #e0f7fa;
-      width: 14%;
-    }
-    .default-column, 
-    .min-column, 
-    .max-column {
-      width: 12%;
-    }
-    .new-value-column {
-      width: 20%;
-    }
-    .new-value-column input, .new-value-column select {
-      width: 100%;
-    }
-    .action-column {
-      width: 14%;
+      border: 1px solid #fff;
+      border-radius: 10px;
+      background-color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 0.5);
     }
 
-    .value-not-default {
-      font-weight: bold;
+    .setting.value-not-default {
       background-color: #a0bfc3;
     }
 
-    .spinner {
-      border: 4px solid rgba(0, 0, 0, 0.1);
-      border-left-color: #000;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      animation: spin 1s linear infinite;
-      display: inline-block;
-      vertical-align: middle;
+    .setting button {
+      margin-top: 5px;
     }
-    @keyframes spin {
-      0% {
-        transform: rotate(0deg);
-      }
-      100% {
-        transform: rotate(360deg);
-      }
+
+    .setting h3 {
+      padding: 0;
+      margin: 0 0 5px;
+      font-size: 16px;
+    }
+
+    .setting input,
+    .setting select,
+    .setting textarea {
+      width: 90%;
+      display: block;
+    }
+
+    #settings-section {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    }
+
+    #settings-progress {
+      display: none;
+      border: 1px solid #52735E;
+      height: 20px;
+      margin-bottom: 10px;
+    }
+
+    #settings-progress div {
+      background-color: #52735E;
+      height: 100%;
     }
 
     input.invalid {
@@ -98,29 +88,79 @@
     }
 
     button {
-      background-color: #52735E; /* Dark green buttons */
+      background-color: #52735E;
+      /* Dark green buttons */
+      border: 1px solid #52735E;
       color: white;
       padding: 10px 20px;
       border: none;
       cursor: pointer;
     }
+
     button:hover {
-      background-color: #426052; /* Slightly darker on hover */
+      background-color: #426052;
+      /* Slightly darker on hover */
     }
 
-    .toggle-button {
-      margin-bottom: 10px;
-      background-color: #52735E;
+    button.secondary {
+      background-color: #fff;
+      /* Dark grey buttons */
+      color: #000;
+      border: 1px solid #52735E;
+    }
+
+    button.secondary:hover {
+      background-color: #f2f2f2;
+      /* Slightly darker on hover */
+    }
+
+    button:disabled {
+      background-color: #606060;
       color: white;
-      padding: 5px 10px;
-      cursor: pointer;
+      cursor: default;
+    }
+
+    #container {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+
+    .section {
+      padding: 10px;
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 1px 1px 4px 0px rgba(0, 0, 0, 0.5);
+    }
+
+    .section h3 {
+      color: #52735E;
+      margin: 0 0 10px;
+    }
+
+    .data-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .data-item:last-child {
+      border-bottom: none;
+    }
+
+    #errors {
+      margin-bottom: 10px;
+    }
+
+    #errors span {
+      color: rgb(132, 0, 0);
+      font-weight: bold;
     }
   </style>
 </head>
+
 <body>
-
-  <img src="smartparks-logo.png" alt="Smart Parks Logo" style="width: 200px; display: block; margin-bottom: 20px;"> <!-- Add logo -->
-
   <h1>OpenCollar Edge BLE Web Connect</h1>
 
   <div class="controls">
@@ -131,60 +171,20 @@
       <select id="settings-dropdown"></select>
       <button id="load-settings-button">Load setting.json</button> <!-- Load button -->
     </div>
-    <div id="spinner-container" style="display: none;">
-      <div class="spinner"></div> <!-- Spinner -->
+    <div id="errors"></div>
+    <div id="container">
     </div>
-    <h2>Status: <span id="status">Disconnected</span></h2>
-    <h2>Device Name: <span id="device-name"></span></h2>
   </div>
 
-  <h2>Log</h2>
   <button class="toggle-button" id="toggle-log">Show Log</button> <!-- Toggle button -->
 
   <div class="log" id="log"></div>
 
-  <h2>Status</h2>
-  <table class="data-table" id="status-table">
-    <thead>
-      <tr>
-        <th class="name-column">Name</th>
-        <th class="value-column">Value</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <h2>Values</h2>
-  <table class="data-table" id="values-table">
-    <thead>
-      <tr>
-        <th class="name-column">Setting Name</th>
-        <th class="id-column">ID</th>
-        <th class="value-column">Value</th>
-        <th class="default-column">Default</th>
-        <th class="min-column">Min</th>
-        <th class="max-column">Max</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
   <h2>Settings</h2>
-  <table class="data-table" id="settings-table">
-    <thead>
-      <tr>
-        <th class="name-column">Setting Name</th>
-        <th class="id-column">ID</th>
-        <th class="value-column">Value</th>
-        <th class="default-column">Default</th>
-        <th class="min-column">Min</th>
-        <th class="max-column">Max</th>
-        <th class="new-value-column">New Value</th>
-        <th class="action-column">Action</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div id="settings-progress">
+    <div></div>
+  </div>
+  <div id="settings-section"></div>
 
   <script>
     const CMD_SINGLE_SETTING = 0xA8;
@@ -193,7 +193,6 @@
 
     let device, server, txCharacteristic, rxCharacteristic;
     let settingsData = null;
-    const spinnerHtml = '<div class="spinner"></div>';
     let readPromiseResolve = null;
     let readPromiseReject = null;
     let bleReadableValues = new Map();
@@ -210,7 +209,7 @@
       }
     });
 
-    document.getElementById('load-settings-button').addEventListener('click', function() {
+    document.getElementById('load-settings-button').addEventListener('click', function () {
       const selectedFile = document.getElementById('settings-dropdown').value;
       log(`Loading settings from ${selectedFile}...`);
       loadSettings(selectedFile); // Load the selected JSON file
@@ -252,7 +251,7 @@
       if (!hexString || typeof hexString !== 'string') {
         return new Uint8Array();
       }
-      
+
       return new Uint8Array(hexString
         .replace(/{|}/g, '')  // remove curly braces
         .split(',')           // split by commas
@@ -277,17 +276,40 @@
     }
 
     function registerBleReadableValues(data) {
-        // Store settings with 'id' as key in the map
-        for (const [key, value] of Object.entries(data)) {
-          bleReadableValues.set(parseInt(value.id, 16), [key, value]);
-        }
+      // Store settings with 'id' as key in the map
+      for (const [key, value] of Object.entries(data)) {
+        bleReadableValues.set(parseInt(value.id, 16), [key, value]);
+      }
     }
-    
+
     function decodeUint8(byte, min, max) {
       return (byte * (max - min)) / 255 + min;
     }
 
     function decodeStatusMessage(bytes) {
+      function decodeType(t) {
+        switch (t) {
+          case 0: return "default";
+          case 1: return "rhinoedge";
+          case 2: return "elephantedge";
+          case 3: return "wisentedge";
+          case 4: return "cattracker";
+          case 5: return "rangeredge";
+          case 6: return "rhinopuck";
+          default: return "unknown";
+        }
+      }
+
+      function decodeReset(reset) {
+        switch (reset) {
+          case 1: return "RESETPIN";
+          case 2: return "DOG";
+          case 4: return "SREQ";
+          case 8: return "LOCKUP";
+          default: return "unknown";
+        }
+      }
+
       const reset = bytes[0];
       const err = bytes[1];
       const bat = bytes[2] * 10 + 2500;
@@ -310,7 +332,7 @@
       const lr_fix = bytes[13];
 
       return {
-        "reset": reset,
+        "reset": decodeReset(reset),
         "bat": bat,
         "charging": Boolean(operation & 1),
         "locked": Boolean(operation & 2),
@@ -331,21 +353,65 @@
         "ublox_busy": Boolean(err & 128),
         "ver_hw": `${ver_hw_major}.${ver_hw_minor}`,
         "ver_fw": `${ver_fw_major}.${ver_fw_minor}`,
-        "ver_hw_type": ver_hw_type,
-        "ver_fw_type": ver_fw_type
+        "ver_hw_type": decodeType(ver_hw_type),
+        "ver_fw_type": decodeType(ver_fw_type)
       };
     }
-    
+
     async function displayStatusMessage() {
       const statusMessage = await requestStatusMessage();
 
-      // Display decoded values in table
-      const statusTableBody = document.querySelector('#status-table tbody');
-      statusTableBody.innerHTML = ''; // clear previous content
+      const errorsDiv = document.querySelector('#errors');
+      errorsDiv.innerHTML = '';
 
-      for (const [key, value] of Object.entries(statusMessage)) {
-        statusTableBody.innerHTML += `<tr><td>${key}</td><td>${value}</td></tr>`;
+      // Display error key only if true
+      let hasErrors = false;
+      for (const [key, hasError] of Object.entries(statusMessage)) {
+        if (key.startsWith('err_') && hasError) {
+          if (!hasErrors) {
+            errorsDiv.innerHTML = 'Errors: ';
+            hasErrors = true;
+          }
+          
+          errorsDiv.innerHTML += `<span>${key.slice(4).toUpperCase()}</span>,`;
+        }
       }
+
+      if (hasErrors) {
+        errorsDiv.innerHTML = errorsDiv.innerHTML.slice(0, -1); // Remove trailing comma
+      } else {
+        errorsDiv.innerHTML = 'No errors';
+      }
+
+      // Display decoded values in table
+      const infoContainer = document.querySelector('#container');
+      infoContainer.innerHTML = ''; // clear previous content
+
+      infoContainer.innerHTML += `
+        <div class="section">
+          <h3>Device Info</h3>
+          <div class="data-item"><span>Device name:</span><span>${device.name}</span></div>
+          <div class="data-item"><span>Hardware Version:</span><span>${statusMessage.ver_hw}</span></div>
+          <div class="data-item"><span>Firmware Version:</span><span>${statusMessage.ver_fw}</span></div>
+          <div class="data-item"><span>Hardware Type:</span><span>${statusMessage.ver_hw_type}</span></div>
+          <div class="data-item"><span>Firmware Type:</span><span>${statusMessage.ver_fw_type}</span></div>
+          <div class="data-item"><span>LR Sat:</span><span>${statusMessage.lr_sat}</span></div>
+          <div class="data-item"><span>LR Fix:</span><span>${statusMessage.lr_fix}</span></div>
+        </div>
+      `;
+
+      infoContainer.innerHTML += `
+        <div class="section">
+          <h3>General Information</h3>
+          <div class="data-item"><span>Reset:</span><span>${statusMessage.reset}</span></div>
+          <div class="data-item"><span>Battery:</span><span>${statusMessage.bat}mV</span></div>
+          <div class="data-item"><span>Charging:</span><span>${statusMessage.charging}</span></div>
+          <div class="data-item"><span>Locked:</span><span>${statusMessage.locked}</span></div>
+          <div class="data-item"><span>Temperature:</span><span>${statusMessage.temp}°C</span></div>
+          <div class="data-item"><span>Uptime:</span><span>${statusMessage.uptime} hours</span></div>
+          <div class="data-item"><span>Acceleration:</span><span>${statusMessage.acc_x}, ${statusMessage.acc_y}, ${statusMessage.acc_z}</span></div>
+        </div>
+      `;
     }
 
     async function loadSettings(selectedFile) {
@@ -358,11 +424,9 @@
         registerBleReadableValues(settingsData.values);
 
         log(`Settings from ${selectedFile} loaded successfully.`);
-        
-        displayValues();
+
         displaySettings();
 
-        await fetchAllValues();
         await fetchAllSettings();
       } catch (error) {
         log(`Error loading settings: ${error.message}`, true);
@@ -370,63 +434,42 @@
     }
 
     function displaySettings() {
-      const settingsTableBody = document.querySelector('#settings-table tbody');
-      settingsTableBody.innerHTML = '';
+      const settingsSection = document.getElementById('settings-section');
+      settingsSection.innerHTML = '';
 
       for (const [key, setting] of Object.entries(settingsData.settings)) {
-        const row = document.createElement('tr');
+        const row = document.createElement('div');
+        row.className = 'setting';
         row.setAttribute('id', `setting-${setting.id}`);
         html = `
-          <td class="name-column">${key}</td>
-          <td class="id-column">${setting.id}</td>
-          <td class="value-column">${spinnerHtml}</td>
-          <td class="default-column">${setting.default}</td>
-          <td class="min-column">${setting.min}</td>
-          <td class="max-column">${setting.max}</td>
-          <td class="new-value-column">
+          <h3>${key} (${setting.id})</h3>
         `;
 
         if (setting.conversion === 'bool') {
           html += `
-              <select id="new-value-${setting.id}">
-                <option value=""></option>
+              <select id="new-value-${setting.id}" disabled>
                 <option value="true">true</option>
                 <option value="false">false</option>
               </select>
           `;
         } else if (setting.conversion === 'uint32' || setting.conversion === 'uint16' || setting.conversion === 'uint8' || setting.conversion === 'int32' || setting.conversion === 'int8') {
-          html += `<input type="number" id="new-value-${setting.id}" min="${setting.min}" max="${setting.max}" />`;
+          html += `<input type="number" id="new-value-${setting.id}" min="${setting.min}" max="${setting.max}" disabled/>`;
         } else if (setting.conversion === 'float') {
-          html += `<input type="number" id="new-value-${setting.id}" min="${setting.min}" max="${setting.max}" step="0.01" />`;
+          html += `<input type="number" id="new-value-${setting.id}" min="${setting.min}" max="${setting.max}" step="0.01" disabled/>`;
+        } else if (setting.conversion === 'byte_array') {
+          html += `<textarea id="new-value-${setting.id}" rows="4" disabled/></textarea>`;
         } else {
-          html += `<input type="text" id="new-value-${setting.id}" />`;
+          html += `<input type="text" id="new-value-${setting.id}" disabled/>`;
         }
-        
+
         html += `
-          </td>
-          <td class="action-column"><button onclick="updateSetting('${setting.id}')">Update</button></td>
+          <div>
+            <button id="update-button-${setting.id}" onclick="updateSetting('${setting.id}')" disabled>Update</button>
+            <button id="reset-button-${setting.id}" onclick="resetSetting('${setting.id}')" class="secondary" title="Default value: ${setting.default}" disabled>Set default</button>
+          </div>
         `;
         row.innerHTML = html;
-        settingsTableBody.appendChild(row);
-      }
-    }
-
-    function displayValues() {
-      const valuesTableBody = document.querySelector('#values-table tbody');
-      valuesTableBody.innerHTML = '';
-
-      for (const [key, value] of Object.entries(settingsData.values)) {
-        const row = document.createElement('tr');
-        row.setAttribute('id', `value-${value.id}`);
-        row.innerHTML = `
-          <td class="name-column">${key}</td>
-          <td class="id-column">${value.id}</td>
-          <td class="value-column">${spinnerHtml}</td>
-          <td class="default-column">${value.default}</td>
-          <td class="min-column">${value.min}</td>
-          <td class="max-column">${value.max}</td>
-        `;
-        valuesTableBody.appendChild(row);
+        settingsSection.appendChild(row);
       }
     }
 
@@ -455,8 +498,6 @@
         await txCharacteristic.startNotifications();
         txCharacteristic.addEventListener('characteristicvaluechanged', handleNotifications);
 
-        document.getElementById('status').textContent = 'Connected';
-        document.getElementById('device-name').textContent = device.name;
         document.getElementById('disconnect-button').disabled = false;
 
         log(`Connected to device: ${device.name}`);
@@ -472,12 +513,12 @@
     document.getElementById('disconnect-button').addEventListener('click', function () {
       if (device && device.gatt.connected) {
         device.gatt.disconnect();
-        document.getElementById('status').textContent = 'Disconnected';
-        document.getElementById('device-name').textContent = '';
+        document.getElementById('errors').textContent = '';
+        document.getElementById('container').textContent = '';
         document.getElementById('disconnect-button').disabled = true;
         document.getElementById('settings-selection').style.display = 'none'; // Hide settings dropdown and button
         log('Disconnected from device');
-        document.querySelector('#settings-table tbody').innerHTML = '';
+        document.getElementById('settings-section').innerHTML = '';
         document.getElementById('log').innerHTML = '';
       }
     });
@@ -562,31 +603,30 @@
       return value !== valueMeta.default;
     }
 
-    function updateValueDisplay(valueId, value) {
-      const [key, valueMeta] = getBleReadableValue(valueId);
-      updateTableRowValueDisplay(`value-${valueId}`, value);
-    }
-
     function updateSettingDisplay(settingId, value, isUpdated = false) {
       const [key, valueMeta] = getBleReadableValue(settingId);
-      updateTableRowValueDisplay(`setting-${settingId}`, value, isUpdated, isValueNotDefault(settingId, value));
-    }
 
-    function updateTableRowValueDisplay(rowId, value, isUpdated = false, highlightChangeFromDefault = false) {
-      const rowElement = document.getElementById(rowId);
+      const inputElement = document.getElementById(`new-value-${settingId}`);
+      const updateButton = document.getElementById(`update-button-${settingId}`);
+      const resetButton = document.getElementById(`reset-button-${settingId}`);
+
+      inputElement.value = value;
+      inputElement.disabled = false;
+      updateButton.disabled = false;
+      resetButton.disabled = false;
+
+      const rowElement = document.getElementById(`setting-${settingId}`);
       if (rowElement) {
-        const valueElement = rowElement.querySelector('.value-column');
-        valueElement.innerHTML = value;
         if (isUpdated) {
-          valueElement.classList.add('value-updated');
+          rowElement.classList.add('value-updated');
         } else {
-          valueElement.classList.remove('value-updated');
+          rowElement.classList.remove('value-updated');
         }
 
-        if (highlightChangeFromDefault) {
-          valueElement.classList.add('value-not-default');
+        if (isValueNotDefault(settingId, value)) {
+          rowElement.classList.add('value-not-default');
         } else {
-          valueElement.classList.remove('value-not-default');
+          rowElement.classList.remove('value-not-default');
         }
       }
     }
@@ -625,28 +665,41 @@
         await rxCharacteristic.writeValue(commandBuffer);
 
         let value = await readPromise;
-        readPromiseReject = null;
-        readPromiseResolve = null;
         return value;
       } catch (error) {
         log(`Error sending command: ${error.message}`, true);
-      }
-    }
-
-    async function fetchAllValues() {
-      for (const [key, value] of Object.entries(settingsData.values)) {
-        updateValueDisplay(value.id, await requestBleValue(value.id, CMD_SINGLE_VALUE));
+      } finally {
+        readPromiseReject = null;
+        readPromiseResolve = null;
       }
     }
 
     async function fetchAllSettings() {
-      for (const [key, setting] of Object.entries(settingsData.settings)) {
+      const progressContainer = document.getElementById('settings-progress')
+      progressContainer.style.display = 'block';
+      const progressBar = document.querySelector('#settings-progress div');
+      const statusTableBody = document.querySelector('#status-table tbody');
+      const entries = Object.entries(settingsData.settings);
+      let index = 0;
+      for (const [key, setting] of entries) {
+        progressBar.style.width = `${(index / entries.length) * 100}%`;
         updateSettingDisplay(setting.id, await requestBleValue(setting.id, CMD_SINGLE_SETTING));
+        index++;
       }
+      progressContainer.style.display = 'none';
+    }
+
+    async function resetSetting(settingId) {
+      const inputElement = document.getElementById(`new-value-${settingId}`);
+      const [settingKey, setting] = getBleReadableValue(settingId);
+      inputElement.value = setting.default;
     }
 
     async function updateSetting(settingId) {
       const inputElement = document.getElementById(`new-value-${settingId}`);
+      const updateButton = document.getElementById(`update-button-${settingId}`);
+      const resetButton = document.getElementById(`reset-button-${settingId}`);
+
       const newValue = inputElement.value.trim();
 
       if (!newValue) {
@@ -691,17 +744,23 @@
       const command = [0x03, parseInt(settingId, 16), length, ...valueBytes];
       const commandBuffer = new Uint8Array(command).buffer;
 
-      updateSettingDisplay(settingId, spinnerHtml); // Show spinner while updating
 
       log(`Sending update for ${settingKey} (ID: ${settingId}) with value: ${newValue}`);
 
       try {
+        updateButton.disabled = true;
+        inputElement.disabled = true;
+        resetButton.disabled = true;
         await rxCharacteristic.writeValue(commandBuffer);
         log(`Value updated successfully for ${settingKey} (ID: ${settingId})`);
         await sleep(1000);
         updateSettingDisplay(settingId, await requestBleValue(settingId, CMD_SINGLE_SETTING), true);
       } catch (error) {
         log(`Error sending update for ${settingKey}: ${error.message}`, true);
+      } finally {
+        updateButton.disabled = false;
+        inputElement.disabled = false;
+        resetButton.disabled = false;
       }
     }
 
@@ -735,5 +794,5 @@
     }
   </script>
 </body>
-</html>
 
+</html>
